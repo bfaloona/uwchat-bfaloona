@@ -1,0 +1,8 @@
+.autotest
+History.txt
+Manifest.txt
+README.txt
+Rakefile
+bin/uwchat
+lib/uwchat.rb
+test/test_uwchat.rb
