@@ -2,60 +2,50 @@ require 'gserver'
 
 module UWChat
 
-  class AuthenticationFailed < RuntimeError; end
-
-  # a chat client connection
-  class Connection
-
-    attr_reader :port, :sock, :username
-
-    def initialize( port, sock, username=nil )
-      @port = port
-      @sock = sock
-      @username = username
-    end
-
-    def to_s
-      "#{username || port}"
-    end
-  end
-
+  # basic chat server
   class Server < GServer
+
+    # track active client connections
     attr_reader :clients
 
     def initialize( port=36963, *args )
       @clients = []
       super(port, *args)
     end
-
-    def new_client( port, sock, username=nil )
+ 
+    # add client Connection instance to @clients
+    def add_client( port, sock, username=nil )
       log( "Adding client on port: #{port}" )
       client = Connection.new( port, sock, username )
       @clients.push client
       client
     end
 
+    # remove client from @clents
     def remove_client( port )
       log( "Removing client on port: #{port}" )
       @clients.delete_if{ |c| c.port == port }
     end
 
+    # add client when GServer invokes
     def connecting(client)
-      new_client( client.peeraddr[1], client )
+      add_client( client.peeraddr[1], client )
       super
     end
 
+    # clean up when GServer invokes
     def disconnecting(clientPort)
       remove_client( clientPort )
       super
     end
 
-    def serve( io )
+    # client session
+    def serve( sock )
       begin
-        welcome_client(io)
+        welcome_client( sock )
         loop do
           # nothing
-          io.puts( io.gets )
+          listen( sock )
         end
 
       rescue => e
@@ -66,8 +56,9 @@ module UWChat
       end
     end
 
-    def find_client_by_socket( socket )      
-      # choose peeraddr[1] vs. addr[1] by useing
+    # return client given socket
+    def find_client_by_socket( socket )
+      # choose peeraddr[1] vs. addr[1] by using
       # the port that does not match
       # the server listen port
       port = socket.addr[1]
@@ -78,6 +69,7 @@ module UWChat
       client
     end
 
+    # greet client
     def welcome_client( sock )
       client = find_client_by_socket( sock )
       sock.puts "Welcome #{client.username}"
@@ -103,6 +95,11 @@ module UWChat
         client.sock.puts "#{sender}: #{msg}" unless sender.port == client.port
       end
       log( "[message] #{sender}: #{msg}" )
+    end
+
+    def listen( sock )
+      msg = sock.gets
+      message( msg, find_client_by_socket(sock) )
     end
   end
 

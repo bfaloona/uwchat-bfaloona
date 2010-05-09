@@ -8,14 +8,11 @@ describe UWChat::Server do
     @server.debug = true
   end
 
-  describe "Object structure" do
+  describe "Project structure" do
 
-    it "should inherit from GServer" do
+    it "should contain required classes" do
       @server.class.ancestors.should include GServer
-    end
-
-    it "should define the required exceptions" do
-      UWChat::AuthenticationFailed.should be_true
+      UWChat::Connection.should be_true
     end
 
   end
@@ -27,7 +24,7 @@ describe UWChat::Server do
       mock_io = mock( 'socket')
       # Expect
       mock_io.should_receive(:puts).with( /^Welcome / )
-      @server.should_receive(:find_client_by_socket).and_return( @server.new_client(1, 'larry') )
+      @server.should_receive(:find_client_by_socket).and_return( @server.add_client(1, 'larry') )
       # Act
       @server.welcome_client( mock_io )
     end
@@ -45,7 +42,7 @@ describe UWChat::Server do
 
     it "should add clients to @clients as they connect" do
       sock = stub('socket')
-      @server.new_client( 1, sock, 'steve' )
+      @server.add_client( 1, sock, 'steve' )
 
       client_socket = stub(:peeraddr => [nil, 36969])
 
@@ -57,8 +54,8 @@ describe UWChat::Server do
     end
 
     it "should remove clients at time of disconnect" do
-      @server.new_client( 1, mock('steve_sock'), 'steve' )
-      @server.new_client( 10_000, mock('penelope_sock'), 'penelope' )
+      @server.add_client( 1, mock('steve_sock'), 'steve' )
+      @server.add_client( 10_000, mock('penelope_sock'), 'penelope' )
       @server.clients.size.should == 2
 
       @server.disconnecting( 10_000 )
@@ -71,8 +68,8 @@ describe UWChat::Server do
     it "should add clients to @clients via add_client()" do
       sock = stub('socket')
       @server.clients.size.should == 0
-      @server.new_client( 1, sock, 'steve' )
-      @server.new_client( 36966, sock, 'larry' )
+      @server.add_client( 1, sock, 'steve' )
+      @server.add_client( 36966, sock, 'larry' )
       @server.clients.size.should == 2
       @server.clients.first.port == 1
       @server.clients.last.username == 'larry'
@@ -80,9 +77,9 @@ describe UWChat::Server do
 
     it "should remove clients from @clients via remove_client()" do
       sock = stub('socket')
-      @server.new_client( 1, sock, 'steve' )
-      @server.new_client( 36966, sock, 'larry' )
-      @server.new_client( 100, sock, 'sue' )
+      @server.add_client( 1, sock, 'steve' )
+      @server.add_client( 36966, sock, 'larry' )
+      @server.add_client( 100, sock, 'sue' )
       @server.clients.size.should == 3
 
       # Act
@@ -94,9 +91,9 @@ describe UWChat::Server do
     end
 
     it "should be able to find client by socket" do
-      @server.new_client( 1, mock('steve_sock'), 'steve' )
-      @server.new_client( 36966, mock('larry_sock'), 'larry' )
-      @server.new_client( 100, mock('sue_sock'), 'sue' )
+      @server.add_client( 1, mock('steve_sock'), 'steve' )
+      @server.add_client( 36966, mock('larry_sock'), 'larry' )
+      @server.add_client( 100, mock('sue_sock'), 'sue' )
 
       mock_sock = mock()
       mock_sock.should_receive( :addr ).and_return( [nil, 36966] )
@@ -107,7 +104,7 @@ describe UWChat::Server do
 
   end
 
-  describe "Message delivery" do
+  describe "Message processing" do
 
     it "should send and log broadcast messages to all users" do
       # Arrange
@@ -116,9 +113,9 @@ describe UWChat::Server do
       mock_sock1 = mock( 'socket1' )
       mock_sock2 = mock( 'socket2' )
       mock_sock3 = mock( 'socket3' )
-      @server.new_client( 1, mock_sock1, 'steve' )
-      @server.new_client( 36966, mock_sock2, 'larry' )
-      @server.new_client( 100, mock_sock3, 'sue' )
+      @server.add_client( 1, mock_sock1, 'steve' )
+      @server.add_client( 36966, mock_sock2, 'larry' )
+      @server.add_client( 100, mock_sock3, 'sue' )
 
       # Expect
       mock_sock1.should_receive( :puts ).with( expected_msg_recieved )
@@ -146,7 +143,7 @@ describe UWChat::Server do
       @server.private(msg, sender, recipient)
     end
 
-    it "should send normal messages to every other user" do
+    it "should send and log normal messages to every other user" do
       # Arrange
       msg = "Chat Message"
       expected_msg_recieved = "larry: #{msg}"
@@ -154,9 +151,9 @@ describe UWChat::Server do
       mock_sock_sender = mock( 'socket_sender' )
       mock_sock1 = mock( 'socket1' )
       mock_sock2 = mock( 'socket2' )
-      sender = @server.new_client( 100, mock_sock_sender, 'larry' )
-      @server.new_client( 1, mock_sock1, 'steve' )
-      @server.new_client( 36966, mock_sock2, 'susan' )
+      sender = @server.add_client( 100, mock_sock_sender, 'larry' )
+      @server.add_client( 1, mock_sock1, 'steve' )
+      @server.add_client( 36966, mock_sock2, 'susan' )
 
       # Expect
       mock_sock_sender.should_not_receive( :puts )
@@ -168,6 +165,23 @@ describe UWChat::Server do
       @server.message( msg, sender )
     end
 
+  end
+
+  describe "Network Listener" do
+
+    it "should send received text out as a message" do
+      # Assemble
+      msg = 'a chat message'
+      mock_socket = mock( 'socket' )
+
+      # Expect
+      mock_socket.should_receive( :gets ).and_return( msg )
+      @server.should_receive( :find_client_by_socket).with( mock_socket ).and_return( mock_socket )
+      @server.should_receive( :message ).with( msg, mock_socket )
+
+      # Act
+      @server.listen( mock_socket )
+    end
   end
 
   describe "Full network stack tests" do

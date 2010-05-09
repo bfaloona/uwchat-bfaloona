@@ -1,5 +1,6 @@
 require 'uwchat/server'
 require 'uwchat/client'
+require 'uwchat/connection'
 
 module UWChat
 
