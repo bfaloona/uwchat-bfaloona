@@ -1,17 +1,31 @@
 #!/usr/bin/env ruby
 
+###
+# UWChat Server - bfaloona
+#
+# usage: uwchat-server port_number debug_flag
+
 require 'uwchat'
 
+if ARGV
+  opt = ARGV.shift
 
-if ARGV && ARGV[0] && ARGV[0].match( /^\d+$/)
-  server = UWChat::Server.new port
-else
-  server = UWChat::Server.new
+  case opt
+  when '-h'
+    puts "usage: uwc-server [port [debug]]"
+
+  when /^d+$/
+    server = UWChat::Server.new( opt )
+
+  else
+    server = UWChat::Server.new
+  end
+
+  if ARGV and ARGV[0]
+    server.debug = true
+  end
+
 end
 
 server.start
 server.join
-
-if ARGV && ARGV[1] && ARGV[1].match( /(true|1)/)
-  server.debug = debug
-end

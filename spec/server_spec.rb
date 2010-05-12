@@ -208,17 +208,20 @@ describe UWChat::Server do
       @server.audit = true; @server.debug = true
       @server.start
       client_session1 = nil
-      Thread.new { client_session1 = TCPSocket.new('localhost', 12345) }
+      client_session2 = nil
+      t1 = Thread.new { client_session1 = TCPSocket.new('localhost', 12345) }
       sleep 1
       client_session1.should be_true
       @server.clients.size.should == 1
       @server.clients[0].port.should == client_session1.addr[1]
 
       client_session2 = nil
-      Thread.new { client_session2 = TCPSocket.new('localhost', 12345) }
+      t2 = Thread.new { client_session2 = TCPSocket.new('localhost', 12345) }
       sleep 0.2
       @server.clients[1].port.should == client_session2.addr[1]
 
+      t1.kill
+      t2.kill 
       @server.shutdown
     end
 

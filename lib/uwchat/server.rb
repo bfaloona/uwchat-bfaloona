@@ -30,8 +30,8 @@ module UWChat
     end
 
     # add client when GServer invokes
-    def connecting(client)
-      add_client( client.peeraddr[1], client )
+    def connecting(socket)
+      add_client( socket.peeraddr[1], socket )
       super
     end
 
@@ -46,14 +46,11 @@ module UWChat
       begin
         welcome_client( sock )
         loop do
-          # nothing
           listen( sock )
         end
 
       rescue => e
         puts "An error occured: #{e.to_s}"
-#        puts "STACK:"
-#        puts $@
         raise e
       end
     end
@@ -99,6 +96,7 @@ module UWChat
       log( "[message] #{sender}: #{msg}" )
     end
 
+    # listen to the socket and send text to other clients
     def listen( sock )
       msg = sock.gets
       message( msg, find_client_by_socket(sock) )

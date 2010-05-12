@@ -2,14 +2,6 @@ require 'uwchat'
 
 describe UWChat::Client do
 
-  describe "Project structure" do
-
-    it "should contain required classes" do
-      UWChat::Client.should be_true
-    end
-
-  end
-
   describe "Network properties" do
 
     before( :each ) do

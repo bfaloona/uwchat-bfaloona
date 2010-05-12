@@ -6,6 +6,7 @@ module UWChat
       @port = port
     end
 
+    # start the client connection
     def start
       begin
         socket = connect()
@@ -31,6 +32,7 @@ module UWChat
       end
     end
     
+    # create a connection to the server
     def connect
       socket = TCPSocket.new( 'localhost', @port )
       raise RuntimeError, "Unable to connect to #{@port}" unless socket
@@ -42,6 +44,7 @@ module UWChat
       return socket
     end
 
+    # print incomming text to console
     def scribe( socket )
       begin
         data = socket.gets.chomp
@@ -49,10 +52,12 @@ module UWChat
         # ignore End of file errors
       end
 
+      # did we get a command from the client?
       if data && data.match( /^\^\^\[([\w]+)\](?:\[(.*)\])$/)
         cmd = Regexp.last_match(1)
         cmd_data = Regexp.last_match(2)
         process_command( cmd, cmd_data )
+
       elsif data
         puts data
         print '> '
@@ -61,6 +66,7 @@ module UWChat
       end
     end
 
+    # send console text to the server
     def deliver( socket )
       input = gets.chomp
       if input
@@ -72,6 +78,8 @@ module UWChat
       end
     end
 
+    
+    # close the socket
     def disconnect( socket )
       socket.close if socket
     end
