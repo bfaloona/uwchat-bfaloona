@@ -22,7 +22,7 @@ describe UWChat::Client do
       # Expect
       TCPSocket.should_receive( :new ).with( 'localhost', 36963 ).and_return( StringIO.new )
 
-      # Act
+      # Act 
       @client.connect
     end
 
@@ -31,6 +31,7 @@ describe UWChat::Client do
       TCPSocket.should_receive( :new ).and_return( @mock_sock )
       @mock_sock.should_receive( :gets ).and_return( 'Welcome user' )
       @client.should_receive( :puts ).with( 'Welcome user' )
+      @client.should_receive( :puts ).with( /^Connected at / )
 
       # Act
       @client.connect
@@ -65,9 +66,8 @@ describe UWChat::Client do
 
     it "should quit gracefully if a network error is encountered" do
       # Expect
-      TCPSocket.should_receive( :new ).and_return( @mock_sock )
-      @mock_sock.should_receive( :gets ).and_raise( Errno::ECONNREFUSED )
-      @client.should_receive( :puts ).with( 'A network error occurred. Goodbye.' )
+      TCPSocket.should_receive( :new ).and_raise( Errno::ECONNREFUSED )
+      @client.should_receive( :puts ).with( /The connection was refused \(.+\). Goodbye./ )
       @client.should_receive( :disconnect )
 
       # Act

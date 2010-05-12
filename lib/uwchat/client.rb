@@ -2,58 +2,78 @@ module UWChat
 
   class Client
 
-    # TCPSocket connection to the server
-    attr_reader :sock
-
     def initialize( port=36963 )
       @port = port
     end
 
     def start
       begin
-        connect()
-        listener = Thread.new do
+        socket = connect()
+
+        listen_thread =
+        Thread.new do
           loop do
-            scribe( @sock )
+            scribe( socket )
           end
         end
+
         loop do
-          send( @sock )
+          deliver( socket )
         end
+
       rescue Errno::ECONNREFUSED => e
-        puts "A network error occurred (#{e.to_s}). Goodbye."
+        puts "The connection was refused (#{e.to_s}). Goodbye."
       rescue => e
-        puts "An error occured: #{e.to_s}"
+        puts "An error occured: #{e.to_s}\n #{$@}"
       ensure
-        listener.kill if listener
-        disconnect
+        listen_thread.kill if listen_thread
+        disconnect( socket )
       end
     end
-
+    
     def connect
-      @sock = TCPSocket.new( 'localhost', @port )
-      welcome_msg = @sock.gets
+      socket = TCPSocket.new( 'localhost', @port )
+      raise RuntimeError, "Unable to connect to #{@port}" unless socket
+      puts "Connected at #{Time.now} to #{@port}"
+      welcome_msg = socket.gets
       puts welcome_msg
+      print '> '
+      STDOUT.flush
+      return socket
     end
 
     def scribe( socket )
-      message = socket.gets.chomp
+      begin
+        data = socket.gets.chomp
+      rescue EOFError
+        # ignore End of file errors
+      end
 
-      if message && message.match( /^\^\^\[([\w]+)\](?:\[(.*)\])$/)
+      if data && data.match( /^\^\^\[([\w]+)\](?:\[(.*)\])$/)
         cmd = Regexp.last_match(1)
-        data = Regexp.last_match(2)
-        process_command( cmd, data )
-      elsif message
-        puts message
+        cmd_data = Regexp.last_match(2)
+        process_command( cmd, cmd_data )
+      elsif data
+        puts data
+        print '> '
+        STDOUT.flush
+        data = nil
       end
     end
 
-    def await_input 
-
+    def deliver( socket )
+      input = gets.chomp
+      if input
+        socket.puts input
+        socket.flush
+        input = nil
+        print '> '
+        STDOUT.flush
+      end
     end
 
-    def disconnect
-
+    def disconnect( socket )
+      socket.close if socket
     end
 
   end

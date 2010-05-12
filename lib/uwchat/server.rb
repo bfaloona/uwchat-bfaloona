@@ -11,11 +11,13 @@ module UWChat
     def initialize( port=36963, *args )
       @clients = []
       super(port, *args)
+      self.audit = true
     end
  
     # add client Connection instance to @clients
     def add_client( port, sock, username=nil )
       log( "Adding client on port: #{port}" )
+      username ||= "chat#{port.to_s[3..-1]}"
       client = Connection.new( port, sock, username )
       @clients.push client
       client

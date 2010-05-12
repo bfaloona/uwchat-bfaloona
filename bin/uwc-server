@@ -1,0 +1,17 @@
+#!/usr/bin/env ruby
+
+require 'uwchat'
+
+
+if ARGV && ARGV[0] && ARGV[0].match( /^\d+$/)
+  server = UWChat::Server.new port
+else
+  server = UWChat::Server.new
+end
+
+server.start
+server.join
+
+if ARGV && ARGV[1] && ARGV[1].match( /(true|1)/)
+  server.debug = debug
+end

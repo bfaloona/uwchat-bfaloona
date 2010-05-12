@@ -40,16 +40,33 @@ describe UWChat::Server do
 
   describe "Multi-Client management" do
 
+    it "should optionally generate a username when adding clients" do
+      sock1 = stub('socket')
+      @server.add_client( 12234, sock1 )
+      sock2 = stub('socket')
+      @server.add_client( 12235, sock2, 'larry' )
+
+      client = @server.clients[0]
+      client.port.should == 12234
+      client.username.should == 'chat34'
+      client = @server.clients[1]
+      client.port.should == 12235
+      client.username.should == 'larry'
+    end
+
     it "should add clients to @clients as they connect" do
+      # Arrange
       sock = stub('socket')
       @server.add_client( 1, sock, 'steve' )
-
       client_socket = stub(:peeraddr => [nil, 36969])
 
+      # Act
       @server.connecting( client_socket )
       client = @server.clients[1]
+
+      # Assert
       client.port.should == 36969
-      client.username.should == nil
+      client.username.should == 'chat69'
       @server.clients.size.should == 2
     end
 
@@ -184,8 +201,8 @@ describe UWChat::Server do
     end
   end
 
-  describe "Full network stack tests" do
- 
+  describe "Full network stack tests" do 
+
     it "should add clients at time of connection - full stack" do
       @server.clients.size.should == 0
       @server.audit = true; @server.debug = true
