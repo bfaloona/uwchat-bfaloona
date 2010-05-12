@@ -5,61 +5,67 @@ module UWChat
   # basic chat server
   class Server < GServer
 
-    # track active client connections
-    attr_reader :clients
+    # track active connections
+    attr_reader :connections
 
     def initialize( port=36963, *args )
-      @clients = []
+      @connections = []
       super(port, *args)
+
+      # required for connecting and disconnecting hooks to fire
       self.audit = true
     end
  
-    # add client Connection instance to @clients
-    def add_client( port, sock, username=nil )
-      log( "Adding client on port: #{port}" )
+    # add connection Connection instance to @connections
+    def add_connection( port, sock, username=nil )
+      log( "Adding connection on port: #{port}" )
+
+      # create a username if one does not exist
       username ||= "chat#{port.to_s[3..-1]}"
-      client = Connection.new( port, sock, username )
-      @clients.push client
-      client
+      connection = Connection.new( port, sock, username )
+
+      # add to list of connections
+      @connections.push connection
+      return connection
     end
 
-    # remove client from @clents
-    def remove_client( port )
-      log( "Removing client on port: #{port}" )
-      @clients.delete_if{ |c| c.port == port }
+    # remove connection from @clents
+    def remove_connection( port )
+      log( "Removing connection on port: #{port}" )
+      @connections.delete_if{ |c| c.port == port }
     end
 
-    # add client when GServer invokes
-    def connecting(client)
-      add_client( client.peeraddr[1], client )
+    # add connection
+    # GServer hook invokes this method
+    def connecting(socket)
+      add_connection( socket.peeraddr[1], socket )
       super
     end
 
-    # clean up when GServer invokes
-    def disconnecting(clientPort)
-      remove_client( clientPort )
+    # remove connection
+    # GServer hook invokes this method
+    def disconnecting(port)
+      remove_connection( port )
       super
     end
 
-    # client session
+    # connection session
     def serve( sock )
       begin
-        welcome_client( sock )
+        welcome_connection( sock )
         loop do
           # nothing
           listen( sock )
         end
 
       rescue => e
-        puts "An error occured: #{e.to_s}"
-#        puts "STACK:"
-#        puts $@
+        puts "An error occured: #{e.to_s}\n #{$@}"
         raise e
       end
     end
 
-    # return client given socket
-    def find_client_by_socket( socket )
+    # return connection given socket
+    def find_connection_by_socket( socket )
       # choose peeraddr[1] vs. addr[1] by using
       # the port that does not match
       # the server listen port
@@ -67,14 +73,23 @@ module UWChat
       if port == self.port
         port = socket.peeraddr[1]
       end
-      client = @clients.select{|c| c.port == port}.first
-      client
+      begin
+        connection = nil
+        @connections.each do |c|
+          puts "CONNECTION: #{c.inspect}"
+          connection = c if c.port == port
+        end
+      rescue => e
+        puts "??!!?? #{e.to_s}" # " \n #{$@}"
+        raise e
+      end
+      return connection
     end
 
-    # greet client
-    def welcome_client( sock )
-      client = find_client_by_socket( sock )
-      sock.puts "Welcome #{client.username}"
+    # greet connection
+    def welcome_connection( sock )
+      connection = find_connection_by_socket( sock )
+      sock.puts "Welcome #{connection.username}"
     end
 
     # send message from sender to recipient
@@ -83,25 +98,25 @@ module UWChat
       log( "[private] #{sender} to #{recipient}: #{msg}")
     end
 
-    # send message to all clients
+    # send message to all connections
     def broadcast( msg )
-      @clients.each do |client|
-        client.sock.puts "Announce: #{msg}"
+      @connections.each do |connection|
+        connection.sock.puts "Announce: #{msg}"
       end
       log( "[broadcast] #{msg}" )
     end
 
-    # send message to all clients except sender
+    # send message to all connections except sender
     def message( msg, sender )
-      @clients.each do |client|
-        client.sock.puts "#{sender}: #{msg}" unless sender.port == client.port
+      @connections.each do |connection|
+        connection.sock.puts "#{sender}: #{msg}" unless sender.port == connection.port
       end
       log( "[message] #{sender}: #{msg}" )
     end
 
     def listen( sock )
       msg = sock.gets
-      message( msg, find_client_by_socket(sock) )
+      message( msg, find_connection_by_socket(sock) )
     end
   end
 

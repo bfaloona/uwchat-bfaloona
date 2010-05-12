@@ -1,6 +1,26 @@
 #!/usr/bin/env ruby
 
+###
+# UWChat Client - bfaloona
+#
+# usage: uwchat-client port_number
+
 require 'uwchat'
-client = UWChat::Client.new
+
+if ARGV
+  opt = ARGV.shift
+
+  case opt
+  when '-h'
+    puts "usage: uwc-client [port]"
+
+  when /^d+$/
+    client = UWChat::Client.new( opt )
+
+  else
+    client = UWChat::Client.new
+  end
+
+end
 
 client.start
