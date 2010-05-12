@@ -3,6 +3,12 @@ History.txt
 Manifest.txt
 README.txt
 Rakefile
-bin/uwchat
+bin/uwc-client
+bin/uwc-server
 lib/uwchat.rb
-test/test_uwchat.rb
+lib/uwchat/client.rb
+lib/uwchat/connection.rb
+lib/uwchat/server.rb
+spec/client_spec.rb
+spec/connection_spec.rb
+spec/server_spec.rb

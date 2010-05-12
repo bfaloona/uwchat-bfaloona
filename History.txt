@@ -1,6 +1,8 @@
-=== 1.0.0 / 2010-05-05
+=== 0.1.1 / 2010-05-12
 
-* 1 major enhancement
+* Misc Cleanup
 
-  * Birthday!
+=== 0.1.0 / 2010-05-12
 
+* Basic chat server
+    * Week 6 Part 1

@@ -4,17 +4,16 @@
 
 == DESCRIPTION:
 
-Simple Chat Server and Client with improper authentication
+Simple Chat Server and Client
 
 == FEATURES/PROBLEMS:
 
-* authenticate
 * send a message
 * view messages from others
 
 == SYNOPSIS:
 
-  ruby uwc-server [port]
+  ruby uwc-server [port [debug_flag] ]
 
   ruby uwc-client [port]
 
