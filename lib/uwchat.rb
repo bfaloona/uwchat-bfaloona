@@ -5,5 +5,5 @@ require 'uwchat/connection'
 module UWChat
 
   STUDENT = 'Brandon Faloona'
-  VERSION = '0.1.1'
+  VERSION = '0.1.2'
 end
