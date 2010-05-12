@@ -1,4 +1,8 @@
 require 'gserver'
+require 'yaml'
+
+require 'digest/md5'
+
 
 module UWChat
 
@@ -8,17 +12,23 @@ module UWChat
     # track active client connections
     attr_reader :clients
 
-    def initialize( port=36963, *args )
+    def initialize( passwd_filepath, port=36963, *args )
       @clients = []
+      raise ArgumentError unless File.exists?(passwd_filepath.to_s)
+      begin
+        @passwds = YAML::load( File.read(passwd_filepath.to_s) )
+      rescue ArgumentError => e
+        raise ArgumentError, "Failed to open password file"
+        exit
+      end
       super(port, *args)
       self.audit = true
     end
  
     # add client Connection instance to @clients
-    def add_client( port, sock, username=nil )
+    def add_client( port, sock )
       log( "Adding client on port: #{port}" )
-      username ||= "chat#{port.to_s[3..-1]}"
-      client = Connection.new( port, sock, username )
+      client = Connection.new( port, sock )
       @clients.push client
       client
     end
@@ -44,7 +54,11 @@ module UWChat
     # client session
     def serve( sock )
       begin
+
+        authenticate( sock )
+
         welcome_client( sock )
+
         loop do
           listen( sock )
         end
@@ -53,6 +67,19 @@ module UWChat
         puts "An error occured: #{e.to_s}"
         raise e
       end
+
+    end
+
+    def authenticate( socket )
+      socket.puts "Enter your username:"
+      username = socket.gets.chomp
+      socket.puts "Password:"
+      password = socket.gets.chomp
+      raise AuthenticationFailed
+    end
+
+    def salt( username )
+      Digest::MD5.hexdigest( username + Time.now.to_s )
     end
 
     # return client given socket

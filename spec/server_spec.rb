@@ -1,11 +1,11 @@
-
+PASSWD_FILEPATH = '/Users/brandon/Sites/uwruby/uwchat/spec/passwd'
+MALFORMED_PASSWD_FILEPATH = '/Users/brandon/Sites/uwruby/uwchat/spec/passwd_malformed'
 require 'uwchat'
 
 describe UWChat::Server do
   before(:each) do
-    @server = UWChat::Server.new( 12345 )
+    @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
     @server.audit = true
-    @server.debug = true
   end
 
   describe "Project structure" do
@@ -24,13 +24,13 @@ describe UWChat::Server do
       mock_io = mock( 'socket')
       # Expect
       mock_io.should_receive(:puts).with( /^Welcome / )
-      @server.should_receive(:find_client_by_socket).and_return( @server.add_client(1, 'larry') )
+      @server.should_receive(:find_client_by_socket).and_return( @server.add_client(1, stub()) )
       # Act
       @server.welcome_client( mock_io )
     end
 
     it "should default to port 36963" do
-      @svr_36963 = UWChat::Server.new
+      @svr_36963 = UWChat::Server.new( PASSWD_FILEPATH )
       @svr_36963.start
       @svr_36963.instance_variable_get( :@port ).should == 36963
       @svr_36963.shutdown
@@ -44,20 +44,18 @@ describe UWChat::Server do
       sock1 = stub('socket')
       @server.add_client( 12234, sock1 )
       sock2 = stub('socket')
-      @server.add_client( 12235, sock2, 'larry' )
+      @server.add_client( 12235, sock2 )
 
       client = @server.clients[0]
       client.port.should == 12234
-      client.username.should == 'chat34'
       client = @server.clients[1]
       client.port.should == 12235
-      client.username.should == 'larry'
     end
 
     it "should add clients to @clients as they connect" do
       # Arrange
       sock = stub('socket')
-      @server.add_client( 1, sock, 'steve' )
+      @server.add_client( 1, sock )
       client_socket = stub(:peeraddr => [nil, 36969])
 
       # Act
@@ -66,37 +64,34 @@ describe UWChat::Server do
 
       # Assert
       client.port.should == 36969
-      client.username.should == 'chat69'
       @server.clients.size.should == 2
     end
 
     it "should remove clients at time of disconnect" do
-      @server.add_client( 1, mock('steve_sock'), 'steve' )
-      @server.add_client( 10_000, mock('penelope_sock'), 'penelope' )
+      @server.add_client( 1, mock('sock1') )
+      @server.add_client( 10_000, mock('sock2') )
       @server.clients.size.should == 2
 
       @server.disconnecting( 10_000 )
       client = @server.clients.last
       client.port.should == 1
-      client.username.should == 'steve'
       @server.clients.size.should == 1
     end 
 
     it "should add clients to @clients via add_client()" do
       sock = stub('socket')
       @server.clients.size.should == 0
-      @server.add_client( 1, sock, 'steve' )
-      @server.add_client( 36966, sock, 'larry' )
+      @server.add_client( 1, sock )
+      @server.add_client( 36966, sock )
       @server.clients.size.should == 2
       @server.clients.first.port == 1
-      @server.clients.last.username == 'larry'
     end
 
     it "should remove clients from @clients via remove_client()" do
       sock = stub('socket')
-      @server.add_client( 1, sock, 'steve' )
-      @server.add_client( 36966, sock, 'larry' )
-      @server.add_client( 100, sock, 'sue' )
+      @server.add_client( 1, sock )
+      @server.add_client( 36966, sock )
+      @server.add_client( 100, sock )
       @server.clients.size.should == 3
 
       # Act
@@ -104,19 +99,18 @@ describe UWChat::Server do
 
       # Assert
       @server.clients.size.should == 2
-      @server.clients.map{ |c| c.username }.should_not include( 'larry' )
+      @server.clients.map{ |c| c.port }.should_not include( 36966 )
     end
 
     it "should be able to find client by socket" do
-      @server.add_client( 1, mock('steve_sock'), 'steve' )
-      @server.add_client( 36966, mock('larry_sock'), 'larry' )
-      @server.add_client( 100, mock('sue_sock'), 'sue' )
+      @server.add_client( 1, mock('steve_sock') )
+      @server.add_client( 36966, mock('larry_sock') )
+      @server.add_client( 100, mock('sue_sock') )
 
       mock_sock = mock()
       mock_sock.should_receive( :addr ).and_return( [nil, 36966] )
       client = @server.find_client_by_socket( mock_sock )
       client.port.should == 36966
-      client.username.should == 'larry'
     end
 
   end
@@ -130,9 +124,9 @@ describe UWChat::Server do
       mock_sock1 = mock( 'socket1' )
       mock_sock2 = mock( 'socket2' )
       mock_sock3 = mock( 'socket3' )
-      @server.add_client( 1, mock_sock1, 'steve' )
-      @server.add_client( 36966, mock_sock2, 'larry' )
-      @server.add_client( 100, mock_sock3, 'sue' )
+      @server.add_client( 1, mock_sock1 )
+      @server.add_client( 36966, mock_sock2 )
+      @server.add_client( 100, mock_sock3 )
 
       # Expect
       mock_sock1.should_receive( :puts ).with( expected_msg_recieved )
@@ -168,9 +162,10 @@ describe UWChat::Server do
       mock_sock_sender = mock( 'socket_sender' )
       mock_sock1 = mock( 'socket1' )
       mock_sock2 = mock( 'socket2' )
-      sender = @server.add_client( 100, mock_sock_sender, 'larry' )
-      @server.add_client( 1, mock_sock1, 'steve' )
-      @server.add_client( 36966, mock_sock2, 'susan' )
+      sender = @server.add_client( 100, mock_sock_sender )
+      sender.instance_variable_set( :@username, 'larry')
+      @server.add_client( 1, mock_sock1 )
+      @server.add_client( 36966, mock_sock2 )
 
       # Expect
       mock_sock_sender.should_not_receive( :puts )
@@ -226,4 +221,32 @@ describe UWChat::Server do
     end
 
   end
+
+  describe "Authentication" do
+
+    it "should require a passwd file to start server" do
+      lambda{ UWChat::Server.new( 12345 )}.should raise_error( ArgumentError )
+      lambda{ UWChat::Server.new( MALFORMED_PASSWD_FILEPATH, 12345 )}.should raise_error( ArgumentError )
+    end
+
+    it "should prompt the user for username" do
+      # Arrange
+      mock_io = mock( 'socket')
+      # Expect
+      mock_io.should_receive(:puts).with( /^Enter your username:$/ )
+      mock_io.should_receive(:gets).and_return( 'larry' )
+      mock_io.should_receive(:puts).with( /^Password:$/ )
+      mock_io.should_receive(:gets).and_return( 'mypassword' )
+      # Act
+      lambda{ @server.authenticate( mock_io ) }.should raise_error( UWChat::AuthenticationFailed )
+    end
+
+    it "should generate a unique salt string" do
+      salt1 = @server.salt( 'hi' )
+      salt2 = @server.salt( 'hi' )
+      salt1.should != salt2
+    end
+  end
+
+
 end

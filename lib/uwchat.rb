@@ -6,4 +6,7 @@ module UWChat
 
   STUDENT = 'Brandon Faloona'
   VERSION = '0.1.2'
+
+  class AuthenticationFailed < Exception; end
+  
 end
