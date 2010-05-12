@@ -21,7 +21,7 @@ Simple Chat Server and Client with improper authentication
 
 == INSTALL:
 
-* [sudo] gem install uwchat-bfaloona
+* sudo gem install uwchat-bfaloona
 
 == DEVELOPERS:
 
