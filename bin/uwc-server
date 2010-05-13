@@ -10,15 +10,17 @@ require 'uwchat'
 if ARGV
   opt = ARGV.shift
 
-  case opt
-  when '-h'
-    puts "usage: uwc-server [port [debug]]"
-
-  when /^d+$/
-    server = UWChat::Server.new( opt )
-
+  if opt == '-h'
+    puts "usage: uwc-server passwd_file [port [debug]]"
   else
-    server = UWChat::Server.new
+    passwd_file = opt 
+  end
+  
+  opt = ARGV.shift
+  if opt and opt.match( /^d+$/ )
+    server = UWChat::Server.new( passwd_file, opt )
+  else
+    server = UWChat::Server.new( passwd_file )
   end
 
   if ARGV and ARGV[0]

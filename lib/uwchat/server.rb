@@ -71,11 +71,18 @@ module UWChat
     end
 
     def authenticate( socket )
-      socket.puts "Enter your username:"
+      
       username = socket.gets.chomp
-      socket.puts "Password:"
-      password = socket.gets.chomp
-      raise AuthenticationFailed
+      authkey = salt(username)
+      socket.puts authkey
+      salty_password = socket.gets.chomp
+      if valid_password?( salty_password, authkey, username )
+        socket.puts "AUTHORIZED"
+      else
+        socket.puts "NOT AUTHORIZED"
+        log( "Authentication Failed #{socket.peeraddr[2]}:#{socket.peeraddr[1]}" )
+        socket.close
+      end
     end
 
     def salt( username )
@@ -128,6 +135,21 @@ module UWChat
       msg = sock.gets
       message( msg, find_client_by_socket(sock) )
     end
+
+    def valid_password?( salty_password=nil, authkey=nil, username=nil )
+      return false if salty_password.nil? or authkey.nil? or username.nil?
+
+      return false unless @passwds.keys.include?( username )
+
+      return true if salty_password == Digest::MD5.hexdigest( authkey << @passwds[username] )
+
+      # denied!
+      return false
+    end
   end
 
-end 
+end
+
+# salt
+#
+# authkey

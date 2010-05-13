@@ -1,7 +1,8 @@
 module UWChat
 
   class Client
-
+    attr_reader :port
+    
     def initialize( port=36963 )
       @port = port
     end
@@ -34,15 +35,67 @@ module UWChat
     
     # create a connection to the server
     def connect
+
       socket = TCPSocket.new( 'localhost', @port )
       raise RuntimeError, "Unable to connect to #{@port}" unless socket
       puts "Connected at #{Time.now} to #{@port}"
-      welcome_msg = socket.gets
-      puts welcome_msg
+
+      authenticate( socket )
+
       print '> '
       STDOUT.flush
+
       return socket
     end
+
+    # collect username and password and authenticate with server
+    def authenticate( socket )
+      puts "Username:"
+      username = gets.chomp
+      puts "Password:"
+      password = gets.chomp
+
+      authenticate_with_server( socket, username, password )
+    end
+
+    # interact with server to authenticate
+    def authenticate_with_server( socket, username, password )
+      authkey = send_username( socket, username )
+      salted_password = salt_password( authkey, password )
+      response = send_salty_password( socket, salted_password )
+      case response
+      when "AUTHENTICATED"
+        # wheee!
+      when "NOT AUTHENTICATED"
+        puts response
+        exit
+      else
+        raise RuntimeError, "Server response unknown"
+      end
+    end
+
+    # send username and return authkey
+    def send_username( socket, username )
+      socket.puts username
+      socket.flush
+      authkey = socket.gets
+      return authkey
+    end
+
+    # send hashed password and return AUTHORIZED/NOT AUTHORIZED message
+    def send_salty_password( socket, salted_password )
+      socket.puts salted_password
+      socket.flush
+      auth_message = socket.gets
+      return auth_message
+    end
+
+    # hashes a password with an authkey
+    def salt_password( authkey, password )
+      combined = authkey.to_s + password.to_s
+      return Digest::MD5.hexdigest(combined)
+    end
+
 
     # print incomming text to console
     def scribe( socket )

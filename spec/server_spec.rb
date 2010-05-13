@@ -1,5 +1,5 @@
-PASSWD_FILEPATH = '/Users/brandon/Sites/uwruby/uwchat/spec/passwd'
-MALFORMED_PASSWD_FILEPATH = '/Users/brandon/Sites/uwruby/uwchat/spec/passwd_malformed'
+PASSWD_FILEPATH = File.join( File.dirname(__FILE__), 'passwd' )
+MALFORMED_PASSWD_FILEPATH = File.join( File.dirname(__FILE__), 'passwd_malformed' )
 require 'uwchat'
 
 describe UWChat::Server do
@@ -224,28 +224,99 @@ describe UWChat::Server do
 
   describe "Authentication" do
 
+    before(:each) do
+      @mock_io = mock( 'socket')
+      @username = 'alice'
+      @password = 'p4s$w0rd!'
+    end
+
     it "should require a passwd file to start server" do
       lambda{ UWChat::Server.new( 12345 )}.should raise_error( ArgumentError )
       lambda{ UWChat::Server.new( MALFORMED_PASSWD_FILEPATH, 12345 )}.should raise_error( ArgumentError )
     end
 
-    it "should prompt the user for username" do
-      # Arrange
-      mock_io = mock( 'socket')
-      # Expect
-      mock_io.should_receive(:puts).with( /^Enter your username:$/ )
-      mock_io.should_receive(:gets).and_return( 'larry' )
-      mock_io.should_receive(:puts).with( /^Password:$/ )
-      mock_io.should_receive(:gets).and_return( 'mypassword' )
-      # Act
-      lambda{ @server.authenticate( mock_io ) }.should raise_error( UWChat::AuthenticationFailed )
+    it "should generate a unique salt string" do
+#      @server.salt('hi').should_not == lambda{ sleep 1; @server.salt('hi') }
+      salt1 = @server.salt('hi')
+      
+      # salt is NOT unique when called within a one second window
+      sleep 1
+
+      salt2 = @server.salt('hi')
+      salt1.should_not == salt2
     end
 
-    it "should generate a unique salt string" do
-      salt1 = @server.salt( 'hi' )
-      salt2 = @server.salt( 'hi' )
-      salt1.should != salt2
+    it "should follow challange response protocol when client connects" do
+      # Arrange
+      @authkey = @server.salt( @username )
+      @salty_password = Digest::MD5.hexdigest( @authkey + @password )
+
+      # Expect
+      @mock_io.should_receive(:gets).and_return( @username )
+      @mock_io.should_receive(:gets).and_return( @salty_password )
+      @mock_io.should_receive(:puts).twice
+      @server.should_receive(:valid_password?).with( @salty_password, @authkey, @username ).and_return( true )
+ 
+      # Act
+      @server.authenticate( @mock_io )
     end
+
+  end
+
+  describe "Password Validation" do
+
+    before(:each) do
+      @mock_io = mock( 'socket')
+      @username = 'alice'
+      @password = 'p4s$w0rd!'
+    end
+
+    it "should validate a salted password" do
+      # Arrange
+      @authkey = @server.salt( @username )
+      @salty_password = Digest::MD5.hexdigest( @authkey + @password )
+
+      # Act
+        @server.valid_password?( @salty_password, @authkey, @username ).should be_true
+    end
+
+    it "should reject an incorrect salted password" do
+      # Arrange
+      @authkey = @server.salt( @username )
+      @salty_password = Digest::MD5.hexdigest( @authkey + @password )
+
+      # Act
+      @server.valid_password?( @salty_password << 'a', @authkey, @username ).should be_false
+      @server.valid_password?( 'incorrect_salty_pass', @authkey, @username ).should be_false
+    end
+
+    it "should reject an incorrect username" do
+      # Arrange
+      @authkey = @server.salt( @username )
+      @salty_password = Digest::MD5.hexdigest( @authkey + @password )
+
+      # Act
+      @server.valid_password?( @salty_password, @authkey, 'invalid_user' ).should be_false
+    end
+
+    it "should reject a blank username and password" do
+      # Arrange
+      @authkey = @server.salt( @username )
+      @salty_password = Digest::MD5.hexdigest( @authkey + @password )
+
+      # Act
+      @server.valid_password?( '', @authkey, '' ).should be_false
+    end
+
+    it "should raise an error when passed a nil username and password" do
+      # Arrange
+      @authkey = @server.salt( @username )
+      @salty_password = Digest::MD5.hexdigest( @authkey + @password )
+
+      # Act
+      @server.valid_password?( nil, @authkey, nil ).should be_false
+    end
+
   end
 
 

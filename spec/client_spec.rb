@@ -11,18 +11,16 @@ describe UWChat::Client do
     end
 
     it "should connect to port 36963 by default" do
-      # Expect
-      TCPSocket.should_receive( :new ).with( 'localhost', 36963 ).and_return( StringIO.new )
-
       # Act 
-      @client.connect
+      @client.port.should == 36963
     end
 
     it "should display the server welcome message" do
       # Expect
       TCPSocket.should_receive( :new ).and_return( @mock_sock )
-      @mock_sock.should_receive( :gets ).and_return( 'Welcome user' )
-      @client.should_receive( :puts ).with( 'Welcome user' )
+      @client.should_receive( :puts ).with( 'Username:' )
+      @client.should_receive( :puts ).with( 'Password:' )
+      @mock_sock.should_receive( :gets ).twice
       @client.should_receive( :puts ).with( /^Connected at / )
 
       # Act
