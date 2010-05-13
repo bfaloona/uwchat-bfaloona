@@ -78,6 +78,7 @@ module UWChat
       salty_password = socket.gets.chomp
       if valid_password?( salty_password, authkey, username )
         socket.puts "AUTHORIZED"
+        find_client_by_socket( socket ).username = username
       else
         socket.puts "NOT AUTHORIZED"
         log( "Authentication Failed #{socket.peeraddr[2]}:#{socket.peeraddr[1]}" )
@@ -132,8 +133,9 @@ module UWChat
 
     # listen to the socket and send text to other clients
     def listen( sock )
-      msg = sock.gets
-      message( msg, find_client_by_socket(sock) )
+      msg = sock.gets.chomp
+
+      message( msg, find_client_by_socket(sock) ) if msg
     end
 
     def valid_password?( salty_password=nil, authkey=nil, username=nil )

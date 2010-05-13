@@ -1,6 +1,12 @@
+=== 0.1.4 / 2010-05-12
+
+* Functional client and server
+
+
 === 0.1.1 / 2010-05-12
 
 * Misc Cleanup
+
 
 === 0.1.0 / 2010-05-12
 

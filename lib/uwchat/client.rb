@@ -64,13 +64,13 @@ module UWChat
       salted_password = salt_password( authkey, password )
       response = send_salty_password( socket, salted_password )
       case response
-      when "AUTHENTICATED"
+      when "AUTHORIZED"
         # wheee!
-      when "NOT AUTHENTICATED"
+      when "NOT AUTHORIZED"
         puts response
         exit
       else
-        raise RuntimeError, "Server response unknown"
+        raise RuntimeError, "Server response unknown: #{response}"
       end
     end
 
@@ -78,7 +78,7 @@ module UWChat
     def send_username( socket, username )
       socket.puts username
       socket.flush
-      authkey = socket.gets
+      authkey = socket.gets.chomp
       return authkey
     end
 
@@ -86,7 +86,7 @@ module UWChat
     def send_salty_password( socket, salted_password )
       socket.puts salted_password
       socket.flush
-      auth_message = socket.gets
+      auth_message = socket.gets.chomp
       return auth_message
     end
 

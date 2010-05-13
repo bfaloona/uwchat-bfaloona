@@ -3,7 +3,8 @@ module UWChat
   # a chat client connection
   class Connection
 
-    attr_reader :port, :sock, :username
+    attr_reader :port, :sock
+    attr_accessor :username
 
     def initialize( port, sock, username=nil )
       @port = port

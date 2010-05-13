@@ -5,7 +5,7 @@ require 'uwchat/connection'
 module UWChat
 
   STUDENT = 'Brandon Faloona'
-  VERSION = '0.1.3'
+  VERSION = '0.1.4'
 
   class AuthenticationFailed < Exception; end
   
