@@ -1,8 +1,7 @@
 require 'gserver'
 require 'yaml'
-
 require 'digest/md5'
-
+require 'timeout'
 
 module UWChat
 
@@ -72,17 +71,31 @@ module UWChat
     end
 
     def authenticate( socket )
+      username = nil
+      authkey = nil
+      salty_password = nil
       
-      username = socket.gets.chomp
-      authkey = salt(username)
+      begin
+        Timeout::timeout(2) do
+          
+          username, authkey, salty_password = get_auth_values( socket )
 
-      socket.puts authkey
-      salty_password = socket.gets.chomp
+        end
+      rescue Timeout::Error => e
+        log( "Authentication timed out.")
+        socket.close
+        return nil
+      rescue => e
+        log( "Unknown Authentication error: #{e.to_s}")
+        socket.close
+        return nil
+      end
 
       if valid_password?( salty_password, authkey, username )
         socket.puts "AUTHORIZED"
         # update client's username
-        find_client_by_socket( socket ).username = username
+        client = find_client_by_socket( socket )
+        client.username = username
         return true
       else
         socket.puts "NOT AUTHORIZED"
@@ -92,6 +105,17 @@ module UWChat
       end
     end
 
+    def get_auth_values( socket )
+      username = socket.gets.chomp
+      authkey = salt(username)
+
+      socket.puts authkey
+      salty_password = socket.gets.chomp
+
+      return [username, authkey, salty_password]
+    end
+
+    # return an authkey
     def salt( username )
       Digest::MD5.hexdigest( username + Time.now.to_s )
     end

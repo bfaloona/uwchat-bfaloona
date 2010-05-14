@@ -258,7 +258,7 @@ describe UWChat::Server do
       @server.should_receive(:valid_password?).with( @salty_password, @authkey, @username ).and_return( true )
       @server.should_receive(:find_client_by_socket).and_return( client )
       client.should_receive(:username=)
- 
+
       # Act
       @server.authenticate( @mock_io )
     end
