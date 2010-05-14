@@ -1,19 +1,36 @@
 module UWChat
 
   class Client
+
+    class NotAuthorized < Exception; end
+
     attr_reader :port
     
     def initialize( port=36963 )
       @port = port
     end
 
-    # start the client connection
+    # start and run the client connection
     def start
       begin
         socket = connect()
+      rescue NotAuthorized => e
+        return nil
+      rescue Errno::ECONNREFUSED => e
+        puts "The connection was refused (#{e.to_s}). Goodbye."
+        return nil
+      rescue => e
+        puts "Failed to connect: #{e.to_s}\n #{$@}"
+        return nil
+      end
 
+      return nil unless socket
+
+      begin
         listen_thread =
         Thread.new do
+          print '> '
+          STDOUT.flush
           loop do
             scribe( socket )
           end
@@ -23,8 +40,6 @@ module UWChat
           deliver( socket )
         end
 
-      rescue Errno::ECONNREFUSED => e
-        puts "The connection was refused (#{e.to_s}). Goodbye."
       rescue => e
         puts "An error occured: #{e.to_s}\n #{$@}"
       ensure
@@ -36,26 +51,26 @@ module UWChat
     # create a connection to the server
     def connect
 
+      auth = authentication_prompt()
+
       socket = TCPSocket.new( 'localhost', @port )
       raise RuntimeError, "Unable to connect to #{@port}" unless socket
       puts "Connected at #{Time.now} to #{@port}"
 
-      authenticate( socket )
-
-      print '> '
-      STDOUT.flush
+      authenticate_with_server( socket, auth[:u], auth[:p] )
 
       return socket
     end
 
     # collect username and password and authenticate with server
-    def authenticate( socket )
+    def authentication_prompt( )
       puts "Username:"
       username = gets.chomp
       puts "Password:"
       password = gets.chomp
-
-      authenticate_with_server( socket, username, password )
+      raise NotAuthorized unless username.match(/\S/)
+      raise NotAuthorized unless password.match(/\S/)
+      return {:u => username, :p => password}
     end
 
     # interact with server to authenticate
@@ -68,9 +83,10 @@ module UWChat
         # wheee!
       when "NOT AUTHORIZED"
         puts response
-        exit
+        raise NotAuthorized, "NOT AUTHORIZED"
       else
-        raise RuntimeError, "Server response unknown: #{response}"
+        puts "Server response unknown: #{response}"
+        raise NotAuthorized, "NOT AUTHORIZED"
       end
     end
 

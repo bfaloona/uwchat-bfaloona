@@ -236,7 +236,6 @@ describe UWChat::Server do
     end
 
     it "should generate a unique salt string" do
-#      @server.salt('hi').should_not == lambda{ sleep 1; @server.salt('hi') }
       salt1 = @server.salt('hi')
       
       # salt is NOT unique when called within a one second window
@@ -250,12 +249,15 @@ describe UWChat::Server do
       # Arrange
       @authkey = @server.salt( @username )
       @salty_password = Digest::MD5.hexdigest( @authkey + @password )
+      client = stub()
 
       # Expect
       @mock_io.should_receive(:gets).and_return( @username )
       @mock_io.should_receive(:gets).and_return( @salty_password )
       @mock_io.should_receive(:puts).twice
       @server.should_receive(:valid_password?).with( @salty_password, @authkey, @username ).and_return( true )
+      @server.should_receive(:find_client_by_socket).and_return( client )
+      client.should_receive(:username=)
  
       # Act
       @server.authenticate( @mock_io )

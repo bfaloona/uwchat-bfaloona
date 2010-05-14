@@ -55,34 +55,40 @@ module UWChat
     def serve( sock )
       begin
 
-        authenticate( sock )
+        if authenticate( sock )
+          welcome_client( sock )
 
-        welcome_client( sock )
-
-        loop do
-          listen( sock )
+          loop do
+            listen( sock )
+          end
         end
 
       rescue => e
         puts "An error occured: #{e.to_s}"
         raise e
+      ensure
+        sock.close if sock
       end
-
     end
 
     def authenticate( socket )
       
       username = socket.gets.chomp
       authkey = salt(username)
+
       socket.puts authkey
       salty_password = socket.gets.chomp
+
       if valid_password?( salty_password, authkey, username )
         socket.puts "AUTHORIZED"
+        # update client's username
         find_client_by_socket( socket ).username = username
+        return true
       else
         socket.puts "NOT AUTHORIZED"
         log( "Authentication Failed #{socket.peeraddr[2]}:#{socket.peeraddr[1]}" )
         socket.close
+        return nil
       end
     end
 
