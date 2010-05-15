@@ -13,6 +13,7 @@ module UWChat
 
     def initialize( passwd_filepath, port=36963, *args )
       @clients = []
+      # load passwd file specified
       raise ArgumentError unless File.exists?(passwd_filepath.to_s)
       begin
         @passwds = YAML::load( File.read(passwd_filepath.to_s) )
@@ -21,6 +22,7 @@ module UWChat
         exit
       end
       super(port, *args)
+      # turn audit on (so connecting and disconnecting hooks are invoked)
       self.audit = true
     end
  
@@ -38,19 +40,21 @@ module UWChat
       @clients.delete_if{ |c| c.port == port }
     end
 
-    # add client when GServer invokes
+    # add client when a socket connects
+    # a GServer hook
     def connecting(socket)
       add_client( socket.peeraddr[1], socket )
       super
     end
 
-    # clean up when GServer invokes
+    # remove client when a socket connects
+    # a GServer hook
     def disconnecting(clientPort)
       remove_client( clientPort )
       super
     end
 
-    # client session
+    # the entire client session
     def serve( sock )
       begin
 
@@ -66,20 +70,20 @@ module UWChat
         puts "An error occured: #{e.to_s}"
         raise e
       ensure
-        sock.close if sock
+        sock.close if sock and !sock.closed?
       end
     end
 
+    # authenticate the connecting client
     def authenticate( socket )
       username = nil
       authkey = nil
       salty_password = nil
       
       begin
-        Timeout::timeout(2) do
-          
-          username, authkey, salty_password = get_auth_values( socket )
-
+        Timeout::timeout(2) do          
+          username, authkey, salty_password =
+            get_auth_values( socket )
         end
       rescue Timeout::Error => e
         log( "Authentication timed out.")
@@ -105,6 +109,7 @@ module UWChat
       end
     end
 
+    # execute network protocol to authenticate
     def get_auth_values( socket )
       username = socket.gets.chomp
       authkey = salt(username)
@@ -168,20 +173,22 @@ module UWChat
       message( msg, find_client_by_socket(sock) ) if msg
     end
 
+    # validate salty_password against passwd file using authkey
     def valid_password?( salty_password=nil, authkey=nil, username=nil )
-      return false if salty_password.nil? or authkey.nil? or username.nil?
+      # nil values?
+      return nil if salty_password.nil? or authkey.nil? or username.nil?
+      # empty strings?
+      return nil if salty_password.empty? or authkey.empty? or username.empty?
+      # unknown users?
+      return nil unless @passwds.keys.include?( username )
 
-      return false unless @passwds.keys.include?( username )
-
+      # valid password?
       return true if salty_password == Digest::MD5.hexdigest( authkey << @passwds[username] )
 
-      # denied!
-      return false
+      # just to be safe
+      return nil
     end
+
   end
 
 end
-
-# salt
-#
-# authkey

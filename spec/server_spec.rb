@@ -3,14 +3,12 @@ MALFORMED_PASSWD_FILEPATH = File.join( File.dirname(__FILE__), 'passwd_malformed
 require 'uwchat'
 
 describe UWChat::Server do
-  before(:each) do
-    @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
-    @server.audit = true
-  end
 
   describe "Project structure" do
 
     it "should contain required classes" do
+      @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
+      @server.audit = true
       @server.class.ancestors.should include GServer
       UWChat::Connection.should be_true
     end
@@ -18,6 +16,11 @@ describe UWChat::Server do
   end
 
   describe "Network properties" do
+
+    before(:each) do
+      @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
+      @server.audit = true
+    end
 
     it "should greet the user" do
       # Arrange
@@ -39,6 +42,11 @@ describe UWChat::Server do
   end
 
   describe "Multi-Client management" do
+
+    before(:each) do
+      @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
+      @server.audit = true
+    end
 
     it "should optionally generate a username when adding clients" do
       sock1 = stub('socket')
@@ -117,6 +125,11 @@ describe UWChat::Server do
 
   describe "Message processing" do
 
+    before(:each) do
+      @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
+      @server.audit = true
+    end
+
     it "should send and log broadcast messages to all users" do
       # Arrange
       msg = "Broadcast Message"
@@ -181,6 +194,11 @@ describe UWChat::Server do
 
   describe "Network Listener" do
 
+    before(:each) do
+      @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
+      @server.audit = true
+    end
+
     it "should send received text out as a message" do
       # Assemble
       msg = 'a chat message'
@@ -199,24 +217,54 @@ describe UWChat::Server do
   describe "Full network stack tests" do 
 
     it "should add clients at time of connection - full stack" do
+      # Arrange
+      @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
       @server.clients.size.should == 0
-      @server.audit = true; @server.debug = true
+      @server.debug = true
       @server.start
       client_session1 = nil
       client_session2 = nil
+
+      # Act
       t1 = Thread.new { client_session1 = TCPSocket.new('localhost', 12345) }
       sleep 1
       client_session1.should be_true
       @server.clients.size.should == 1
       @server.clients[0].port.should == client_session1.addr[1]
-
       client_session2 = nil
       t2 = Thread.new { client_session2 = TCPSocket.new('localhost', 12345) }
       sleep 0.2
+      
+      # Assert
       @server.clients[1].port.should == client_session2.addr[1]
 
       t1.kill
       t2.kill 
+      @server.shutdown
+      sleep 0.1
+    end
+
+    it "should timeout if authentication takes more than two seconds" do
+      # Arrange
+      @server = UWChat::Server.new( PASSWD_FILEPATH, 12346 )
+      @server.debug = true
+      @server.start
+
+      # Act
+      client = TCPSocket.new('localhost', 12346)
+      Timeout::timeout(5) do
+        
+        client.puts 'alice'
+        authkey = client.gets.chomp
+        sleep 2.1
+        client.puts Digest::MD5.hexdigest(authkey + 'p4s$w0rd!')
+
+        # Assert
+        authorized_string = client.gets
+        authorized_string.should be_nil
+
+      end
+
       @server.shutdown
     end
 
@@ -225,6 +273,7 @@ describe UWChat::Server do
   describe "Authentication" do
 
     before(:each) do
+      @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
       @mock_io = mock( 'socket')
       @username = 'alice'
       @password = 'p4s$w0rd!'
@@ -268,6 +317,7 @@ describe UWChat::Server do
   describe "Password Validation" do
 
     before(:each) do
+      @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
       @mock_io = mock( 'socket')
       @username = 'alice'
       @password = 'p4s$w0rd!'
@@ -288,8 +338,8 @@ describe UWChat::Server do
       @salty_password = Digest::MD5.hexdigest( @authkey + @password )
 
       # Act
-      @server.valid_password?( @salty_password << 'a', @authkey, @username ).should be_false
-      @server.valid_password?( 'incorrect_salty_pass', @authkey, @username ).should be_false
+      @server.valid_password?( @salty_password << 'a', @authkey, @username ).should be_nil
+      @server.valid_password?( 'incorrect_salty_pass', @authkey, @username ).should be_nil
     end
 
     it "should reject an incorrect username" do
@@ -298,7 +348,7 @@ describe UWChat::Server do
       @salty_password = Digest::MD5.hexdigest( @authkey + @password )
 
       # Act
-      @server.valid_password?( @salty_password, @authkey, 'invalid_user' ).should be_false
+      @server.valid_password?( @salty_password, @authkey, 'invalid_user' ).should be_nil
     end
 
     it "should reject a blank username and password" do
@@ -307,7 +357,7 @@ describe UWChat::Server do
       @salty_password = Digest::MD5.hexdigest( @authkey + @password )
 
       # Act
-      @server.valid_password?( '', @authkey, '' ).should be_false
+      @server.valid_password?( '', @authkey, '' ).should be_nil
     end
 
     it "should raise an error when passed a nil username and password" do
@@ -316,7 +366,7 @@ describe UWChat::Server do
       @salty_password = Digest::MD5.hexdigest( @authkey + @password )
 
       # Act
-      @server.valid_password?( nil, @authkey, nil ).should be_false
+      @server.valid_password?( nil, @authkey, nil ).should be_nil
     end
 
   end

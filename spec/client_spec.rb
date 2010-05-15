@@ -38,7 +38,7 @@ describe UWChat::Client do
       @client.should_receive( :authentication_prompt ).and_return( {:u => 'user', :p => 'pass'} )
 
       TCPSocket.should_receive( :new ).and_return( @mock_sock )
-      @client.should_receive( :puts ).with( /^Connected at / )
+      @client.should_receive( :print ).with( /^Connecting at / )
       @client.should_receive( :authenticate_with_server )
 
       # Act
@@ -145,15 +145,6 @@ describe UWChat::Client do
       # Expect
       @mock_sock.should_receive( :gets ).and_return( "larry: i'm hungry" )
       @client.should_receive( :puts ).with( "larry: i'm hungry" )
-
-      # Act
-      @client.scribe( @mock_sock )
-    end
-
-    it "should process commands from the server" do
-      # Expect
-      @mock_sock.should_receive( :gets ).and_return( "^^[boot][you are mean]" )
-      @client.should_receive( :process_command ).with( "boot", "you are mean" )
 
       # Act
       @client.scribe( @mock_sock )

@@ -13,7 +13,7 @@ Simple Chat Server and Client
 
 == SYNOPSIS:
 
-  ruby uwc-server [port [debug_flag] ]
+  ruby uwc-server password_file [port [debug_flag] ]
 
   ruby uwc-client [port]
 

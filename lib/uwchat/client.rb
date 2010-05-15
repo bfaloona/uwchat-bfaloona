@@ -50,12 +50,11 @@ module UWChat
     
     # create a connection to the server
     def connect
-
       auth = authentication_prompt()
 
       socket = TCPSocket.new( 'localhost', @port )
       raise RuntimeError, "Unable to connect to #{@port}" unless socket
-      puts "Connected at #{Time.now} to #{@port}"
+      print "Connecting at #{Time.now} to #{@port} ... "
 
       authenticate_with_server( socket, auth[:u], auth[:p] )
 
@@ -80,7 +79,7 @@ module UWChat
       response = send_salty_password( socket, salted_password )
       case response
       when "AUTHORIZED"
-        # wheee!
+        puts response
       when "NOT AUTHORIZED"
         puts response
         raise NotAuthorized, "NOT AUTHORIZED"
@@ -115,24 +114,12 @@ module UWChat
 
     # print incomming text to console
     def scribe( socket )
-      begin
-        data = socket.gets.chomp
-      rescue EOFError
-        # ignore End of file errors
-      end
-
-      # did we get a command from the client?
-      if data && data.match( /^\^\^\[([\w]+)\](?:\[(.*)\])$/)
-        cmd = Regexp.last_match(1)
-        cmd_data = Regexp.last_match(2)
-        process_command( cmd, cmd_data )
-
-      elsif data
-        puts data
-        print '> '
-        STDOUT.flush
-        data = nil
-      end
+      data = nil
+      data = socket.gets.chomp
+      
+      puts data
+      print '> '
+      STDOUT.flush
     end
 
     # send console text to the server
@@ -150,7 +137,7 @@ module UWChat
     
     # close the socket
     def disconnect( socket )
-      socket.close if socket
+      socket.close if socket and !socket.closed?
     end
 
   end
