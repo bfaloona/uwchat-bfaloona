@@ -21,11 +21,64 @@ module UWChat
         raise ArgumentError, "Failed to open password file"
         exit
       end
+
       super(port, *args)
+
       # turn audit on (so connecting and disconnecting hooks are invoked)
       self.audit = true
+
+      load_builtin_commands  
     end
- 
+
+    # Array of known commands
+    def commands
+      svr_cmd_classes = UWChat::ServerCommand.commands
+      cmd_hash = Hash.new
+      svr_cmd_classes.each do |klass|
+        cmd_hash[ klass.cmd ] = {:desc => klass.desc, :block => klass.run_block}
+      end
+      return cmd_hash
+    end
+
+
+#    commands[:log] =>
+#       {:description => 'log a message', :block => &block }
+    # load built-in commands from lib/uwchat/builtin_server_commands.rb
+    def load_builtin_commands
+      load 'uwchat/builtin_server_commands.rb'
+    end
+
+    # execute a command initiated by a client
+    def execute( cmd, client, data )
+      block = commands[ cmd ][:block]
+      # arity, ignoring server and client
+      num_params = (block.arity - 2)
+
+      case num_params
+      when 0
+        block.call( self, client )
+      when 1
+        block.call( self, client, data )
+      else
+        words = data.split(" ")
+        params = []
+        # raise num_params.to_s
+        num_params.times do
+          params << words.shift
+        end
+        data = words.join(" ")
+        params << data
+        block.call( self, client, *params )
+      end
+
+    end
+
+    # wrap the log method (which is protected)
+    def do_log( msg )
+      log( msg )
+    end
+
+    
     # add client Connection instance to @clients
     def add_client( port, sock )
       log( "Adding client on port: #{port}" )

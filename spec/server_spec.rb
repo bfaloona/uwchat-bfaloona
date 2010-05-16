@@ -1,5 +1,7 @@
+
 PASSWD_FILEPATH = File.join( File.dirname(__FILE__), 'passwd' )
 MALFORMED_PASSWD_FILEPATH = File.join( File.dirname(__FILE__), 'passwd_malformed' )
+
 require 'uwchat'
 
 describe UWChat::Server do
@@ -8,7 +10,6 @@ describe UWChat::Server do
 
     it "should contain required classes" do
       @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
-      @server.audit = true
       @server.class.ancestors.should include GServer
       UWChat::Connection.should be_true
     end
@@ -245,27 +246,29 @@ describe UWChat::Server do
     end
 
     it "should timeout if authentication takes more than two seconds" do
-      # Arrange
-      @server = UWChat::Server.new( PASSWD_FILEPATH, 12346 )
-      @server.debug = true
-      @server.start
+      begin
+        # Arrange
+        @server = UWChat::Server.new( PASSWD_FILEPATH, 12346 )
+        @server.debug = true
+        @server.start
 
-      # Act
-      client = TCPSocket.new('localhost', 12346)
-      Timeout::timeout(5) do
+        # Act
+        client = TCPSocket.new('localhost', 12346)
+        Timeout::timeout(5) do
+
+          client.puts 'alice'
+          authkey = client.gets.chomp
+          sleep 2.1
+          client.puts Digest::MD5.hexdigest(authkey + 'p4s$w0rd!')
+
+          # Assert
+          authorized_string = client.gets
+          authorized_string.should be_nil
+        end
         
-        client.puts 'alice'
-        authkey = client.gets.chomp
-        sleep 2.1
-        client.puts Digest::MD5.hexdigest(authkey + 'p4s$w0rd!')
-
-        # Assert
-        authorized_string = client.gets
-        authorized_string.should be_nil
-
+      ensure
+        @server.shutdown
       end
-
-      @server.shutdown
     end
 
   end
@@ -371,5 +374,58 @@ describe UWChat::Server do
 
   end
 
+  describe "Command Execution" do
+
+    before(:each) do
+      @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
+      @mock_io = mock( 'socket')
+    end
+
+    after(:each) do
+      @server.shutdown
+    end
+
+    it "should encapsulate ServerCommand subclasses" do
+      # Arrange
+      client = mock( 'client' )
+
+      # Expect
+      client.should_receive( :sock ).and_return( @mock_io )
+      @mock_io.should_receive( :puts ).with( /Server: hello from client/ )
+      @server.should_receive( :do_log ).with( /hello from client/ )
+
+      class LogMessageCommand < UWChat::ServerCommand
+        command :log
+        when_run do |server, client, msg|
+          server.do_log( msg )
+          server.private(msg, "Server", client)
+        end
+      end
+
+      # Act
+      lambda{ @server.execute( :log, client, 'hello from client' ) }.should_not raise_error
+    end
+
+    it "should know the arity of a command" do
+      # Arrange
+      client = mock( 'client' )
+
+      # Expect
+      client.should_receive( :sock ).and_return( @mock_io )
+      @mock_io.should_receive( :puts ).with( "Server: the product is 6")
+      class MultiplyCommand < UWChat::ServerCommand
+        command :multiply
+        when_run do |server, client, a, b|
+          product = a.to_i * b.to_i
+          server.private("the product is #{product}", "Server", client)
+        end
+      end
+
+      # Act
+      lambda{ @server.execute( :multiply, client, '3 2' ) }.should_not raise_error
+
+    end
+
+  end
 
 end
