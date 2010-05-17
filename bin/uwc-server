@@ -7,11 +7,14 @@
 
 require 'uwchat'
 
+# Add command definition here to validate this configuration
 class LogMessageCommand < UWChat::ServerCommand
   command :log
+
   description "Logs a message on the server"
+
   when_run do |server, client, msg|
-    server.do_log( "[log from #{client.username}] #{msg}" )
+    server.do_log( "[command log] Message logged by #{client.username}: #{msg}" )
     server.private(msg, "Server log", client)
   end
 end

@@ -55,6 +55,7 @@ module UWChat
     def execute( cmd, client, data )
       unless commands[ cmd ]
         private("Unknown command [#{cmd}]", "Server", client)
+        log( "[command #{cmd}] Error. Unknown command." )
         return nil
       end
 #      raise commands[ cmd ].inspect + ' :: ' + cmd.to_s
@@ -203,6 +204,7 @@ module UWChat
     def welcome_client( sock )
       client = find_client_by_socket( sock )
       sock.puts "Welcome #{client.username}"
+      sock.puts "Type /help to list available commands."
     end
 
     # send message from sender to recipient

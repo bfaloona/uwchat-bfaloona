@@ -129,6 +129,7 @@ module UWChat
         socket.puts input
         socket.flush
         input = nil
+        return if socket.closed?
         print '> '
         STDOUT.flush
       end

@@ -1,3 +1,12 @@
+=== 0.2.0 / 2010-05-17
+
+* ServerCommand DSL
+  * Commands implemented
+    * /quit
+    * /help
+    * /users
+    * /log <msg>
+
 === 0.1.4 / 2010-05-12
 
 * Functional client and server

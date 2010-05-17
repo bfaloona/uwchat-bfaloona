@@ -28,6 +28,7 @@ describe UWChat::Server do
       mock_io = mock( 'socket')
       # Expect
       mock_io.should_receive(:puts).with( /^Welcome / )
+      mock_io.should_receive(:puts).with( "Type \/help to list available commands." )
       @server.should_receive(:find_client_by_socket).and_return( @server.add_client(1, stub()) )
       # Act
       @server.welcome_client( mock_io )
@@ -468,24 +469,59 @@ describe UWChat::Server do
     it "should disconnect a client when it recieves /quit" do
       # Arrange
       client = mock( 'client' )
+      client.stub!( :sock ).and_return( @mock_io )
+      @server.stub!( :find_client_by_socket ).and_return( client )
 
       # Expect
-      client.stub!( :sock ).and_return( @mock_io )
-      #client.should_receive( :sock )
       @mock_io.should_receive( :gets ).and_return( "/quit\n" )
-      @server.stub!( :find_client_by_socket ).and_return( client )
       @mock_io.should_receive( :puts ).with( "Server: Later dude.")
       @mock_io.should_receive( :close )
       client.should_receive( :username ).and_return( 'larry' )
       client.should_receive( :port ).and_return( 10101 )
+      @server.should_receive( :do_log ).with( /^\[command quit\] .+ on \d+ quit./ )
 
       # Act
       @server.listen( @mock_io )
-
     end
-    it "should print valid commands when it recieves /help"
-    it "should list active users when it recieves /users"
-    it "should log a message on the server when it receives /log <msg>"
+
+    it "should print valid commands when it recieves /help" do
+      # Arrange
+      client = mock( 'client' )
+      client.stub!( :sock ).and_return( @mock_io )
+      @server.stub!( :find_client_by_socket ).and_return( client )
+
+      # Expect
+      @mock_io.should_receive( :gets ).and_return( "/help\n" )
+      @mock_io.should_receive( :puts ).exactly(25).times
+      client.should_receive( :username ).and_return( 'larry' )
+      @server.should_receive( :do_log ).with( "[command help] Listed available commands for larry" )
+
+      # Act
+      @server.listen( @mock_io )
+    end
+
+    it "should list active users when it recieves /users" do
+      # Arrange
+      client = mock( 'client' )
+      client.stub!( :sock ).and_return( @mock_io )
+      @server.stub!( :find_client_by_socket ).and_return( client )
+      @server.stub!( :clients ).and_return(
+        [ UWChat::Connection.new(1, mock('socket1'), 'larry'),
+          UWChat::Connection.new(2, mock('socket2'), 'louis'),
+          UWChat::Connection.new(3, mock('socket3'), 'sally')
+        ] )
+
+      # Expect
+      @mock_io.should_receive( :gets ).and_return( "/users\n" )
+      @mock_io.should_receive( :puts ).and_return( 'larry' )
+      @mock_io.should_receive( :puts ).and_return( 'louis' )
+      @mock_io.should_receive( :puts ).and_return( 'sally' )
+      client.should_receive( :username ).and_return( 'larry' )
+      @server.should_receive( :do_log ).with( "[command users] Listed users for larry." )
+
+      # Act
+      @server.listen( @mock_io )
+    end
 
   end
 
