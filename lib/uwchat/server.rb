@@ -30,7 +30,10 @@ module UWChat
       load_builtin_commands  
     end
 
-    # Array of known commands
+    # Hash of known commands
+    #   {:users =>
+    #     {:desc => 'List Users', :block => #<Proc:... }
+    #   }
     def commands
       svr_cmd_classes = UWChat::ServerCommand.commands
       cmd_hash = Hash.new
@@ -41,16 +44,21 @@ module UWChat
     end
 
 
-#    commands[:log] =>
-#       {:description => 'log a message', :block => &block }
     # load built-in commands from lib/uwchat/builtin_server_commands.rb
     def load_builtin_commands
       load 'uwchat/builtin_server_commands.rb'
     end
 
     # execute a command initiated by a client
+    # parameters following command (/log) are space separated
+    # last parameter includes entire space if they exist
     def execute( cmd, client, data )
-      block = commands[ cmd ][:block]
+      unless commands[ cmd ]
+        private("Unknown command [#{cmd}]", "Server", client)
+        return nil
+      end
+#      raise commands[ cmd ].inspect + ' :: ' + cmd.to_s
+      block = commands[ cmd ][ :block ]
       # arity, ignoring server and client
       num_params = (block.arity - 2)
 
@@ -62,10 +70,10 @@ module UWChat
       else
         words = data.split(" ")
         params = []
-        # raise num_params.to_s
-        num_params.times do
+        (num_params - 1).times do
           params << words.shift
         end
+        # last parameter can include spaces
         data = words.join(" ")
         params << data
         block.call( self, client, *params )
@@ -220,10 +228,23 @@ module UWChat
     end
 
     # listen to the socket and send text to other clients
-    def listen( sock )
+     def listen( sock )
       msg = sock.gets.chomp
 
-      message( msg, find_client_by_socket(sock) ) if msg
+      case msg
+      when /^\/([\S]+)[\n ]?(.+)?/
+        cmd = Regexp.last_match(1)
+        data = Regexp.last_match(2)
+        # raise "#{cmd} :: #{ data}"
+        execute( cmd.to_sym, find_client_by_socket(sock), data)
+      when nil
+        # do nothing
+      when ''
+        # do nothing
+      else
+        message( msg, find_client_by_socket(sock) ) if msg
+      end
+
     end
 
     # validate salty_password against passwd file using authkey

@@ -10,7 +10,7 @@ module UWChat
     end
 
     def self::inherited( klass )
-      @@commands.push klass
+      @@commands << klass
     end
 
     def self::execute( *args )

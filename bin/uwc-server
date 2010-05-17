@@ -7,6 +7,15 @@
 
 require 'uwchat'
 
+class LogMessageCommand < UWChat::ServerCommand
+  command :log
+  description "Logs a message on the server"
+  when_run do |server, client, msg|
+    server.do_log( "[log from #{client.username}] #{msg}" )
+    server.private(msg, "Server log", client)
+  end
+end
+
 if ARGV
   opt = ARGV.shift
 

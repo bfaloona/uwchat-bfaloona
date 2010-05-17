@@ -379,6 +379,7 @@ describe UWChat::Server do
     before(:each) do
       @server = UWChat::Server.new( PASSWD_FILEPATH, 12345 )
       @mock_io = mock( 'socket')
+      @server.debug = true
     end
 
     after(:each) do
@@ -406,25 +407,85 @@ describe UWChat::Server do
       lambda{ @server.execute( :log, client, 'hello from client' ) }.should_not raise_error
     end
 
-    it "should know the arity of a command" do
+    it "should determine the arity of a command" do
       # Arrange
       client = mock( 'client' )
 
       # Expect
       client.should_receive( :sock ).and_return( @mock_io )
-      @mock_io.should_receive( :puts ).with( "Server: the product is 6")
-      class MultiplyCommand < UWChat::ServerCommand
-        command :multiply
-        when_run do |server, client, a, b|
-          product = a.to_i * b.to_i
-          server.private("the product is #{product}", "Server", client)
-        end
-      end
+      @mock_io.should_receive( :puts ).with( "Server: don't you know the product is 6")
 
       # Act
-      lambda{ @server.execute( :multiply, client, '3 2' ) }.should_not raise_error
+      class MultiplyCommand < UWChat::ServerCommand
+        command :multiply
+        when_run do |server, client, a, b, msg|
+          product = a.to_i * b.to_i
+          server.private("#{msg} the product is #{product}", "Server", client)
+        end
+      end
+      @server.execute( :multiply, client, "3 2 don't you know" )
+    end
+
+    it "should omit allow nil parameters if the block allows it" do
+      # Arrange
+      client = mock( 'client' )
+
+      # Expect
+      client.should_receive( :sock ).and_return( @mock_io )
+      @mock_io.should_receive( :puts ).with( "Server:  the product is 3778896")
+
+      # Act
+      @server.execute( :multiply, client, "11 343536" )
+    end
+
+    it "should parse commands from clients" do
+      # Arrange
+      client = mock( 'client' )
+
+      # Expect
+      @mock_io.should_receive( :gets ).and_return( "/quit\n" )
+      @server.should_receive( :find_client_by_socket ).and_return( client )
+      @server.should_receive( :execute ).with( :quit, client, nil )
+
+      # Act
+      @server.listen( @mock_io )
+    end
+
+    it "should reject unknown commands from clients" do
+      # Arrange
+      client = mock( 'client' )
+
+      # Expect
+      client.should_receive( :sock ).and_return( @mock_io )
+      @mock_io.should_receive( :gets ).and_return( "/eject\n" )
+      @server.stub!( :find_client_by_socket ).and_return( client )
+      @mock_io.should_receive( :puts ).with( "Server: Unknown command [eject]")
+
+      # Act
+      @server.listen( @mock_io )
+    end
+
+    it "should disconnect a client when it recieves /quit" do
+      # Arrange
+      client = mock( 'client' )
+
+      # Expect
+      client.stub!( :sock ).and_return( @mock_io )
+      #client.should_receive( :sock )
+      @mock_io.should_receive( :gets ).and_return( "/quit\n" )
+      @server.stub!( :find_client_by_socket ).and_return( client )
+      @mock_io.should_receive( :puts ).with( "Server: Later dude.")
+      @mock_io.should_receive( :close )
+      client.should_receive( :username ).and_return( 'larry' )
+      client.should_receive( :port ).and_return( 10101 )
+
+      # Act
+      @server.listen( @mock_io )
 
     end
+    it "should print valid commands when it recieves /help"
+    it "should list active users when it recieves /users"
+    it "should log a message on the server when it receives /log <msg>"
 
   end
 
