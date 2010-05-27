@@ -6,7 +6,8 @@ module UWChat
 
     attr_reader :port
     
-    def initialize( port=36963 )
+    def initialize( server='localhost', port=36963 )
+      @server = server
       @port = port
     end
 
@@ -52,7 +53,7 @@ module UWChat
     def connect
       auth = authentication_prompt()
 
-      socket = TCPSocket.new( 'localhost', @port )
+      socket = TCPSocket.new( @server, @port )
       raise RuntimeError, "Unable to connect to #{@port}" unless socket
       print "Connecting at #{Time.now} to #{@port} ... "
 
@@ -64,9 +65,9 @@ module UWChat
     # collect username and password and authenticate with server
     def authentication_prompt( )
       puts "Username:"
-      username = gets.chomp
+      username = $stdin.gets.chomp
       puts "Password:"
-      password = gets.chomp
+      password = $stdin.gets.chomp
       raise NotAuthorized unless username.match(/\S/)
       raise NotAuthorized unless password.match(/\S/)
       return {:u => username, :p => password}
@@ -124,7 +125,7 @@ module UWChat
 
     # send console text to the server
     def deliver( socket )
-      input = gets.chomp
+      input = $stdin.gets.chomp
       if input
         socket.puts input
         socket.flush
